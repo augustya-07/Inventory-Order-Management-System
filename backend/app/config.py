@@ -9,9 +9,15 @@ class Settings:
     API_V1_STR: str = "/api/v1"
     
     # Defaulting to a local PostgreSQL container URL for local development
-    DATABASE_URL: str = os.getenv(
+    _db_url = os.getenv(
         "DATABASE_URL", 
         "postgresql://postgres:postgres@db:5432/inventory_db"
     )
+    # Platforms like Render/Railway sometimes inject 'postgres://' which SQLAlchemy 1.4+ does not support.
+    # We automatically rewrite it to 'postgresql://' for seamless production deployment.
+    if _db_url and _db_url.startswith("postgres://"):
+        _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+        
+    DATABASE_URL: str = _db_url
 
 settings = Settings()
