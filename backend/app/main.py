@@ -1,3 +1,4 @@
+import uuid
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -49,6 +50,7 @@ def map_order_to_response(order: models.Order) -> schemas.OrderResponse:
         customer_id=order.customer_id,
         customer_name=order.customer.name if order.customer else "Deleted Customer",
         total_amount=order.total_amount,
+        status=order.status,
         created_at=order.created_at,
         items=items_response
     )
@@ -59,6 +61,23 @@ def read_root():
         "status": "online",
         "project": settings.PROJECT_NAME,
         "docs_url": "/docs"
+    }
+
+# ==================== AUTHENTICATION ENDPOINTS ====================
+
+@app.post("/auth/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
+def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
+    return crud.create_user(db, user)
+
+@app.post("/auth/login", response_model=schemas.TokenResponse)
+def login(credentials: schemas.UserLogin, db: Session = Depends(database.get_db)):
+    user = crud.authenticate_user(db, credentials)
+    # Generate portable secure access token
+    token = f"flowstock-session-{user.username}-{uuid.uuid4().hex[:8]}"
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "username": user.username
     }
 
 # ==================== PRODUCT ENDPOINTS ====================
@@ -135,6 +154,11 @@ def get_order(id: int, db: Session = Depends(database.get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Order with ID {id} not found"
         )
+    return map_order_to_response(db_order)
+
+@app.put("/orders/{id}/status", response_model=schemas.OrderResponse)
+def update_order_status(id: int, status_update: schemas.OrderStatusUpdate, db: Session = Depends(database.get_db)):
+    db_order = crud.update_order_status(db, id, status_update.status)
     return map_order_to_response(db_order)
 
 @app.delete("/orders/{id}", status_code=status.HTTP_204_NO_CONTENT)

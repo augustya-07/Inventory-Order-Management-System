@@ -1,12 +1,22 @@
 from sqlalchemy.orm import Session
-from . import models
+from . import models, crud
 
 def seed_data(db: Session):
     """
     Seed initial beautiful data if the database is empty.
-    Creates sample products (including low-stock products) and customers.
+    Creates an admin login user, sample products, and customers.
     """
-    # 1. Seed Products
+    # 1. Seed Admin User
+    if db.query(models.User).count() == 0:
+        print("Seeding default admin user...")
+        admin_user = models.User(
+            username="admin",
+            hashed_password=crud.hash_password("admin123")
+        )
+        db.add(admin_user)
+        db.commit()
+
+    # 2. Seed Products
     if db.query(models.Product).count() == 0:
         print("Seeding initial products...")
         sample_products = [
@@ -20,7 +30,7 @@ def seed_data(db: Session):
         db.add_all(sample_products)
         db.commit()
 
-    # 2. Seed Customers
+    # 3. Seed Customers
     if db.query(models.Customer).count() == 0:
         print("Seeding initial customers...")
         sample_customers = [

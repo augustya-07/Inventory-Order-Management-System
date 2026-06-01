@@ -2,6 +2,27 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import List, Optional
 from datetime import datetime
 
+# ==================== USER & AUTH SCHEMAS ====================
+class UserCreate(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
+    password: str = Field(..., min_length=4)
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+
+    class Config:
+        from_attributes = True
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    username: str
+
 # ==================== PRODUCT SCHEMAS ====================
 class ProductBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
@@ -22,7 +43,6 @@ class ProductCreate(ProductBase):
     pass
 
 class ProductUpdate(ProductBase):
-    # Optional fields for updates, but using same schema rules
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     sku: Optional[str] = Field(None, min_length=3, max_length=50)
     price: Optional[float] = Field(None, gt=0)
@@ -79,11 +99,24 @@ class OrderResponse(BaseModel):
     customer_id: int
     customer_name: str
     total_amount: float
+    status: str
     created_at: datetime
     items: List[OrderItemResponse]
 
     class Config:
         from_attributes = True
+
+class OrderStatusUpdate(BaseModel):
+    status: str = Field(..., description="Must be one of PENDING, PROCESSING, SHIPPED, DELIVERED, CANCELLED")
+
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        status_upper = v.strip().upper()
+        valid_statuses = {"PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"}
+        if status_upper not in valid_statuses:
+            raise ValueError(f"Invalid status value. Must be one of: {', '.join(valid_statuses)}")
+        return status_upper
 
 # ==================== DASHBOARD SCHEMAS ====================
 class DashboardStats(BaseModel):

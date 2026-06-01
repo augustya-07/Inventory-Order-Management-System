@@ -3,6 +3,14 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, nullable=False, index=True)
+    hashed_password = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
 class Product(Base):
     __tablename__ = "products"
 
@@ -35,6 +43,7 @@ class Order(Base):
     id = Column(Integer, primary_key=True, index=True)
     customer_id = Column(Integer, ForeignKey("customers.id", ondelete="CASCADE"), nullable=False)
     total_amount = Column(Float, nullable=False, default=0.0)
+    status = Column(String, nullable=False, default="PENDING")  # Status tracking (PENDING, PROCESSING, SHIPPED, DELIVERED, CANCELLED)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
