@@ -4,11 +4,17 @@ import Dashboard from './components/Dashboard';
 import ProductList from './components/ProductList';
 import CustomerList from './components/CustomerList';
 import OrderList from './components/OrderList';
+import LoginScreen from './components/LoginScreen';
 
 // Read API URL from Vite environment variables, fallback to local standard
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export default function App() {
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('flowstock_session');
+    return saved ? JSON.parse(saved) : null;
+  });
+
   const [currentView, setCurrentView] = useState('dashboard');
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -33,6 +39,7 @@ export default function App() {
 
   // Fetch all databases from Python FastAPI
   const fetchData = async () => {
+    if (!currentUser) return; // Prevent call if unauthorized
     try {
       // Parallel fetches for high performance
       const [resProducts, resCustomers, resOrders, resStats] = await Promise.all([
@@ -52,10 +59,26 @@ export default function App() {
     }
   };
 
-  // Fetch initial data on load
+  // Fetch initial data on load or user change
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (currentUser) {
+      fetchData();
+    }
+  }, [currentUser]);
+
+  // ==================== AUTHENTICATION ACTIONS ====================
+  const handleLoginSuccess = (userProfile) => {
+    localStorage.setItem('flowstock_session', JSON.stringify(userProfile));
+    setCurrentUser(userProfile);
+    showToast(`Access Granted. Welcome back, ${userProfile.username}!`, 'success');
+  };
+
+  const handleSignOut = () => {
+    localStorage.removeItem('flowstock_session');
+    setCurrentUser(null);
+    setCurrentView('dashboard');
+    showToast("Terminal session closed successfully.", 'success');
+  };
 
   // ==================== PRODUCT ACTIONS ====================
   const handleAddProduct = async (payload) => {
@@ -172,6 +195,26 @@ export default function App() {
     }
   };
 
+  const handleUpdateOrderStatus = async (id, newStatus) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/orders/${id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to update order tracking status");
+      }
+
+      showToast(`Order #${id} status updated to ${newStatus}!`, 'success');
+      fetchData();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
   const handleDeleteOrder = async (id) => {
     try {
       const res = await fetch(`${API_BASE_URL}/orders/${id}`, {
@@ -187,6 +230,23 @@ export default function App() {
       showToast(err.message, 'error');
     }
   };
+
+  // Route guarding interceptor
+  if (!currentUser) {
+    return (
+      <div className="app-container" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {notification && (
+          <div className={`notification ${notification.type}`}>
+            <span style={{ fontSize: '1.2rem' }}>
+              {notification.type === 'success' ? '✓' : '⚠️'}
+            </span>
+            <span>{notification.message}</span>
+          </div>
+        )}
+        <LoginScreen API_BASE_URL={API_BASE_URL} onLoginSuccess={handleLoginSuccess} />
+      </div>
+    );
+  }
 
   // Render View helper
   const renderActiveView = () => {
@@ -218,6 +278,7 @@ export default function App() {
             products={products}
             onCreateOrder={handleCreateOrder}
             onDeleteOrder={handleDeleteOrder}
+            onUpdateOrderStatus={handleUpdateOrderStatus}
           />
         );
       default:
@@ -246,7 +307,7 @@ export default function App() {
           <span className="logo-text">FlowStock</span>
         </div>
 
-        <ul className="nav-links">
+        <ul className="nav-links" style={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
           <li 
             className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
             onClick={() => setCurrentView('dashboard')}
@@ -270,7 +331,7 @@ export default function App() {
             onClick={() => setCurrentView('customers')}
           >
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20H7v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
             Customers
           </li>
@@ -282,6 +343,58 @@ export default function App() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
             </svg>
             Orders
+          </li>
+
+          {/* Active User Branding (Sidebar Details) */}
+          <div style={{
+            marginTop: 'auto',
+            padding: '16px',
+            background: 'var(--card-bg)',
+            border: '1px solid var(--card-border)',
+            borderRadius: 'var(--border-radius-sm)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            marginBottom: '12px'
+          }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              backgroundColor: 'var(--color-accent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              color: '#fff'
+            }}>
+              {currentUser.username.charAt(0).toUpperCase()}
+            </div>
+            <div style={{ overflow: 'hidden' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                {currentUser.username}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--color-success)', fontWeight: 500 }}>
+                • Connected
+              </div>
+            </div>
+          </div>
+
+          {/* Exit Terminal Session (Sign Out) */}
+          <li 
+            className="nav-item" 
+            style={{ 
+              color: 'var(--color-danger)', 
+              borderColor: 'transparent',
+              fontWeight: 600
+            }}
+            onClick={handleSignOut}
+          >
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Sign Out
           </li>
         </ul>
       </aside>

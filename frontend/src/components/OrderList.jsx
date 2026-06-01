@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 
-export default function OrderList({ orders, customers, products, onCreateOrder, onDeleteOrder }) {
+export default function OrderList({ orders, customers, products, onCreateOrder, onDeleteOrder, onUpdateOrderStatus }) {
   const [showCreateView, setShowCreateView] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
 
   // --- Create Order Form States ---
   const [customerId, setCustomerId] = useState('');
-  // items: [{ product_id: '', quantity: 1, availableStock: 0, price: 0, name: '' }]
   const [orderItems, setOrderItems] = useState([
     { product_id: '', quantity: 1, availableStock: 0, price: 0, name: '' }
   ]);
@@ -31,7 +30,7 @@ export default function OrderList({ orders, customers, products, onCreateOrder, 
     if (product) {
       items[index] = {
         product_id: prodId,
-        quantity: Math.min(items[index].quantity, product.quantity), // cap quantity by available stock
+        quantity: Math.min(items[index].quantity, product.quantity),
         availableStock: product.quantity,
         price: product.price,
         name: product.name
@@ -46,7 +45,6 @@ export default function OrderList({ orders, customers, products, onCreateOrder, 
   const handleItemQuantityChange = (index, qty) => {
     const items = [...orderItems];
     const quantity = parseInt(qty) || 1;
-    // Enforce limits
     const maxStock = items[index].availableStock;
     items[index].quantity = Math.max(1, Math.min(quantity, maxStock));
     setOrderItems(items);
@@ -65,14 +63,12 @@ export default function OrderList({ orders, customers, products, onCreateOrder, 
       return;
     }
 
-    // Filter valid items
     const validItems = orderItems.filter(item => item.product_id !== '');
     if (validItems.length === 0) {
       alert("Please add at least one valid product to your order.");
       return;
     }
 
-    // Structure request payload
     const payload = {
       customer_id: parseInt(customerId),
       items: validItems.map(item => ({
@@ -83,7 +79,6 @@ export default function OrderList({ orders, customers, products, onCreateOrder, 
 
     onCreateOrder(payload);
 
-    // Reset fields
     setCustomerId('');
     setOrderItems([{ product_id: '', quantity: 1, availableStock: 0, price: 0, name: '' }]);
     setShowCreateView(false);
@@ -101,8 +96,112 @@ export default function OrderList({ orders, customers, products, onCreateOrder, 
     });
   };
 
+  // Status badge classes and names
+  const getStatusConfig = (status) => {
+    switch (status?.toUpperCase()) {
+      case 'PENDING':
+        return { text: 'Placed', color: 'var(--color-warning)', glow: 'var(--color-warning-glow)' };
+      case 'PROCESSING':
+        return { text: 'Processing', color: 'var(--color-info)', glow: 'hsla(199, 89%, 48%, 0.15)' };
+      case 'SHIPPED':
+        return { text: 'Shipped', color: 'var(--color-accent)', glow: 'var(--color-accent-glow)' };
+      case 'DELIVERED':
+        return { text: 'Delivered', color: 'var(--color-success)', glow: 'var(--color-success-glow)' };
+      case 'CANCELLED':
+        return { text: 'Cancelled', color: 'var(--color-danger)', glow: 'var(--color-danger-glow)' };
+      default:
+        return { text: 'Unknown', color: 'var(--text-secondary)', glow: 'transparent' };
+    }
+  };
+
+  // Helper to calculate progress percentage for timeline
+  const getProgressPercentage = (status) => {
+    switch (status?.toUpperCase()) {
+      case 'PENDING': return 0;
+      case 'PROCESSING': return 33.3;
+      case 'SHIPPED': return 66.6;
+      case 'DELIVERED': return 100;
+      default: return 0;
+    }
+  };
+
   return (
     <div>
+      {/* Inline styles for timeline components to keep component fully portable */}
+      <style>{`
+        .tracking-stepper {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          position: relative;
+          margin: 32px 0 16px 0;
+          padding: 0 10px;
+        }
+        .tracking-stepper::before {
+          content: "";
+          position: absolute;
+          top: 16px;
+          left: 0;
+          width: 100%;
+          height: 4px;
+          background-color: var(--card-border);
+          z-index: 1;
+        }
+        .stepper-progress {
+          position: absolute;
+          top: 16px;
+          left: 0;
+          height: 4px;
+          background-color: var(--color-success);
+          z-index: 2;
+          transition: var(--transition-smooth);
+        }
+        .stepper-step {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          position: relative;
+          z-index: 3;
+          flex: 1;
+        }
+        .step-circle {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background-color: var(--bg-secondary);
+          border: 3px solid var(--card-border);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+          transition: var(--transition-smooth);
+        }
+        .stepper-step.active .step-circle {
+          border-color: var(--color-success);
+          background-color: var(--color-success-glow);
+          color: var(--color-success);
+          box-shadow: 0 0 10px var(--color-success);
+        }
+        .stepper-step.completed .step-circle {
+          border-color: var(--color-success);
+          background-color: var(--color-success);
+          color: white;
+        }
+        .step-label {
+          margin-top: 8px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: var(--text-secondary);
+          text-align: center;
+        }
+        .stepper-step.active .step-label,
+        .stepper-step.completed .step-label {
+          color: var(--text-primary);
+        }
+      `}</style>
+
       <header>
         <h1 className="header-title">Order Ledger</h1>
         <p className="header-subtitle">Invoice customers, track orders, audit purchase details, and manage cancellations.</p>
@@ -152,7 +251,7 @@ export default function OrderList({ orders, customers, products, onCreateOrder, 
               </select>
             </div>
 
-            <div style={{ marginTop: '32px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ marginTop: '32px', marginBottom: '16px', display: 'flex', justifycontent: 'space-between', alignitems: 'center' }}>
               <span className="form-label" style={{ marginBottom: 0 }}>Line Items</span>
               <button type="button" className="btn btn-secondary btn-small" onClick={handleAddItemRow}>
                 + Add Item Row
@@ -272,15 +371,15 @@ export default function OrderList({ orders, customers, products, onCreateOrder, 
                     <th>Order ID</th>
                     <th>Customer Name</th>
                     <th>Date & Time</th>
-                    <th>Items Ordered</th>
                     <th>Total Price</th>
+                    <th>Order Status</th>
                     <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {orders.map((order) => {
                     const isSelected = selectedOrderId === order.id;
-                    const itemsCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
+                    const statusCfg = getStatusConfig(order.status);
                     
                     return (
                       <React.Fragment key={order.id}>
@@ -288,9 +387,30 @@ export default function OrderList({ orders, customers, products, onCreateOrder, 
                           <td style={{ fontWeight: 700, fontFamily: 'monospace' }}>#{order.id}</td>
                           <td style={{ fontWeight: 600 }}>{order.customer_name}</td>
                           <td style={{ color: 'var(--text-secondary)' }}>{formatDate(order.created_at)}</td>
-                          <td>{itemsCount} items ({order.items.length} types)</td>
                           <td style={{ fontWeight: 800, color: 'var(--color-success)' }}>
                             ${order.total_amount.toFixed(2)}
+                          </td>
+                          <td>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '4px 10px',
+                              borderRadius: '12px',
+                              fontSize: '0.8rem',
+                              fontWeight: 700,
+                              backgroundColor: statusCfg.glow,
+                              color: statusCfg.color,
+                              border: `1px solid ${statusCfg.color}40`
+                            }}>
+                              <span style={{
+                                width: '6px',
+                                height: '6px',
+                                borderRadius: '50%',
+                                backgroundColor: statusCfg.color
+                              }} />
+                              {statusCfg.text}
+                            </span>
                           </td>
                           <td style={{ textAlign: 'right' }}>
                             <div style={{ display: 'inline-flex', gap: '8px' }}>
@@ -298,7 +418,7 @@ export default function OrderList({ orders, customers, products, onCreateOrder, 
                                 className="btn btn-secondary btn-small"
                                 onClick={() => setSelectedOrderId(isSelected ? null : order.id)}
                               >
-                                {isSelected ? 'Hide Details' : 'View Details'}
+                                {isSelected ? 'Hide Details' : 'Track Order'}
                               </button>
                               <button 
                                 className="btn btn-danger btn-small"
@@ -308,7 +428,7 @@ export default function OrderList({ orders, customers, products, onCreateOrder, 
                                   }
                                 }}
                               >
-                                Cancel Order
+                                Delete
                               </button>
                             </div>
                           </td>
@@ -319,9 +439,96 @@ export default function OrderList({ orders, customers, products, onCreateOrder, 
                           <tr>
                             <td colSpan={6} style={{ backgroundColor: 'hsla(223, 47%, 8%, 0.4)', padding: '0 20px 20px 20px' }}>
                               <div className="order-details-drawer">
-                                <h4 style={{ fontWeight: 700, marginBottom: '16px', borderBottom: '1px dashed var(--card-border)', paddingBottom: '8px' }}>
-                                  Detailed Invoice Breakdown - Order #{order.id}
-                                </h4>
+                                
+                                {/* Stepper Row */}
+                                {order.status?.toUpperCase() === 'CANCELLED' ? (
+                                  <div style={{
+                                    padding: '12px 16px',
+                                    borderRadius: '8px',
+                                    backgroundColor: 'hsla(350, 89%, 60%, 0.1)',
+                                    border: '1px solid var(--color-danger)',
+                                    color: 'hsl(350, 89%, 75%)',
+                                    fontWeight: 600,
+                                    fontSize: '0.9rem',
+                                    margin: '16px 0 24px 0',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                  }}>
+                                    <span>⚠️</span>
+                                    <span>This order has been officially cancelled. Stocks have been fully reinstated in the product catalog.</span>
+                                  </div>
+                                ) : (
+                                  <div style={{ marginBottom: '32px' }}>
+                                    <h4 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                      Live Tracking Telemetry
+                                    </h4>
+                                    
+                                    <div className="tracking-stepper">
+                                      {/* Stepper active track line */}
+                                      <div className="stepper-progress" style={{ width: `${getProgressPercentage(order.status)}%` }} />
+                                      
+                                      {/* Steps */}
+                                      {['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED'].map((step, idx) => {
+                                        const statuses = ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED'];
+                                        const currentIdx = statuses.indexOf(order.status?.toUpperCase());
+                                        const stepIdx = statuses.indexOf(step);
+                                        
+                                        let stepClass = '';
+                                        if (stepIdx < currentIdx) stepClass = 'completed';
+                                        else if (stepIdx === currentIdx) stepClass = 'active';
+                                        
+                                        const stepLabels = ['Placed', 'Processing', 'Shipped', 'Delivered'];
+                                        
+                                        return (
+                                          <div key={idx} className={`stepper-step ${stepClass}`}>
+                                            <div className="step-circle">
+                                              {stepIdx < currentIdx ? '✓' : idx + 1}
+                                            </div>
+                                            <div className="step-label">{stepLabels[idx]}</div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Header & Quick Status Transitions Selector */}
+                                <div style={{ 
+                                  display: 'flex', 
+                                  justifyContent: 'space-between', 
+                                  alignItems: 'center', 
+                                  flexWrap: 'wrap', 
+                                  gap: '16px',
+                                  marginBottom: '20px', 
+                                  borderBottom: '1px dashed var(--card-border)', 
+                                  paddingBottom: '16px' 
+                                }}>
+                                  <h4 style={{ fontWeight: 700, fontSize: '1rem' }}>
+                                    Detailed Invoice Breakdown - Order #{order.id}
+                                  </h4>
+                                  
+                                  {/* Status Transition Control Dropdown */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <label className="form-label" style={{ marginBottom: 0, fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                                      Update Status:
+                                    </label>
+                                    <select 
+                                      className="form-input" 
+                                      style={{ width: '150px', padding: '6px 12px', fontSize: '0.85rem' }}
+                                      value={order.status}
+                                      onChange={(e) => onUpdateOrderStatus(order.id, e.target.value)}
+                                    >
+                                      <option value="PENDING">Placed</option>
+                                      <option value="PROCESSING">Processing</option>
+                                      <option value="SHIPPED">Shipped</option>
+                                      <option value="DELIVERED">Delivered</option>
+                                      <option value="CANCELLED">Cancelled</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                {/* Items Grid */}
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
                                   {order.items.map((item, idx) => (
                                     <div 
