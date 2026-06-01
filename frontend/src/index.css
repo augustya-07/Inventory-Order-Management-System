@@ -5,7 +5,7 @@
   line-height: 1.5;
   font-weight: 400;
 
-  /* Color Palette - Custom HSL */
+  /* Color Palette - Custom HSL Dark Theme */
   --bg-primary: hsl(224, 71%, 4%);
   --bg-secondary: hsl(222, 47%, 8%);
   --card-bg: hsla(223, 47%, 13%, 0.6);
@@ -36,6 +36,39 @@
   --border-radius-sm: 8px;
   --border-radius-md: 12px;
   --border-radius-lg: 18px;
+}
+
+/* Light Theme Override Variables */
+body.light-theme {
+  --bg-primary: hsl(210, 40%, 96%);
+  --bg-secondary: hsl(0, 0%, 100%);
+  --card-bg: hsla(0, 0%, 100%, 0.8);
+  --card-border: hsla(214, 32%, 91%, 0.9);
+  
+  --text-primary: hsl(222, 47%, 12%);
+  --text-secondary: hsl(215, 16%, 42%);
+  --text-muted: hsl(215, 12%, 55%);
+  
+  --color-accent: hsl(263, 90%, 55%);
+  --color-accent-glow: hsla(263, 90%, 55%, 0.08);
+  --color-success: hsl(160, 84%, 32%);
+  --color-success-glow: hsla(160, 84%, 32%, 0.08);
+  --color-warning: hsl(38, 92%, 40%);
+  --color-warning-glow: hsla(38, 92%, 40%, 0.08);
+  --color-danger: hsl(350, 89%, 52%);
+  --color-danger-glow: hsla(350, 89%, 52%, 0.08);
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 8px 30px rgba(222, 222, 222, 0.2);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.08);
+}
+
+/* Global Theme Transition */
+body, aside, main, div, input, select, button, svg, tr, td, th {
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              color 0.2s ease, 
+              box-shadow 0.3s ease;
 }
 
 * {
@@ -81,6 +114,10 @@ body::before {
   background: radial-gradient(circle, hsla(263, 90%, 66%, 0.08) 0%, transparent 70%);
   z-index: -1;
   pointer-events: none;
+}
+
+body.light-theme::before {
+  background: radial-gradient(circle, hsla(263, 90%, 66%, 0.04) 0%, transparent 70%);
 }
 
 body::after {
