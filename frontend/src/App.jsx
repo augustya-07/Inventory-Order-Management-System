@@ -32,6 +32,7 @@ export default function App() {
   };
 
   const [currentView, setCurrentView] = useState('dashboard');
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -53,9 +54,8 @@ export default function App() {
     }, 4000);
   };
 
-  // Fetch all databases from Python FastAPI
+  // Fetch all databases from Python FastAPI (Accessible publicly to guests and admins)
   const fetchData = async () => {
-    if (!currentUser) return; // Prevent call if unauthorized
     try {
       // Parallel fetches for high performance
       const [resProducts, resCustomers, resOrders, resStats] = await Promise.all([
@@ -75,12 +75,20 @@ export default function App() {
     }
   };
 
-  // Fetch initial data on load or user change
+  // Fetch initial data on load
   useEffect(() => {
-    if (currentUser) {
-      fetchData();
+    fetchData();
+  }, []);
+
+  // Helper method to guard write actions
+  const checkAuth = () => {
+    if (!currentUser) {
+      showToast("Please sign in to perform management operations.", "error");
+      setShowLoginModal(true);
+      return false;
     }
-  }, [currentUser]);
+    return true;
+  };
 
   // ==================== AUTHENTICATION ACTIONS ====================
   const handleLoginSuccess = (userProfile) => {
@@ -98,6 +106,7 @@ export default function App() {
 
   // ==================== PRODUCT ACTIONS ====================
   const handleAddProduct = async (payload) => {
+    if (!checkAuth()) return;
     try {
       const res = await fetch(`${API_BASE_URL}/products`, {
         method: 'POST',
@@ -118,6 +127,7 @@ export default function App() {
   };
 
   const handleUpdateProduct = async (id, payload) => {
+    if (!checkAuth()) return;
     try {
       const res = await fetch(`${API_BASE_URL}/products/${id}`, {
         method: 'PUT',
@@ -138,6 +148,7 @@ export default function App() {
   };
 
   const handleDeleteProduct = async (id) => {
+    if (!checkAuth()) return;
     try {
       const res = await fetch(`${API_BASE_URL}/products/${id}`, {
         method: 'DELETE'
@@ -155,6 +166,7 @@ export default function App() {
 
   // ==================== CUSTOMER ACTIONS ====================
   const handleAddCustomer = async (payload) => {
+    if (!checkAuth()) return;
     try {
       const res = await fetch(`${API_BASE_URL}/customers`, {
         method: 'POST',
@@ -175,6 +187,7 @@ export default function App() {
   };
 
   const handleDeleteCustomer = async (id) => {
+    if (!checkAuth()) return;
     try {
       const res = await fetch(`${API_BASE_URL}/customers/${id}`, {
         method: 'DELETE'
@@ -192,6 +205,7 @@ export default function App() {
 
   // ==================== ORDER ACTIONS ====================
   const handleCreateOrder = async (payload) => {
+    if (!checkAuth()) return;
     try {
       const res = await fetch(`${API_BASE_URL}/orders`, {
         method: 'POST',
@@ -212,6 +226,7 @@ export default function App() {
   };
 
   const handleUpdateOrderStatus = async (id, newStatus) => {
+    if (!checkAuth()) return;
     try {
       const res = await fetch(`${API_BASE_URL}/orders/${id}/status`, {
         method: 'PUT',
@@ -232,6 +247,7 @@ export default function App() {
   };
 
   const handleDeleteOrder = async (id) => {
+    if (!checkAuth()) return;
     try {
       const res = await fetch(`${API_BASE_URL}/orders/${id}`, {
         method: 'DELETE'
@@ -246,41 +262,6 @@ export default function App() {
       showToast(err.message, 'error');
     }
   };
-
-  // Route guarding interceptor
-  if (!currentUser) {
-    return (
-      <div className="app-container" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {notification && (
-          <div className={`notification ${notification.type}`}>
-            <span style={{ fontSize: '1.2rem' }}>
-              {notification.type === 'success' ? '✓' : '⚠️'}
-            </span>
-            <span>{notification.message}</span>
-          </div>
-        )}
-        
-        {/* Curved Theme Toggle Button */}
-        <button 
-          className="theme-toggle-btn" 
-          onClick={toggleTheme} 
-          title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
-        >
-          {theme === 'dark' ? (
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m0 13.5V21M4.95 4.95l1.59 1.59m10.91 10.91l1.59 1.59M3 12h2.25m13.5 0H21m-16.05 4.95l1.59-1.59m10.91-10.91l1.59-1.59M12 7.5a4.5 4.5 0 100 9 4.5 4.5 0 000-9z" />
-            </svg>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-            </svg>
-          )}
-        </button>
-
-        <LoginScreen API_BASE_URL={API_BASE_URL} onLoginSuccess={handleLoginSuccess} />
-      </div>
-    );
-  }
 
   // Render View helper
   const renderActiveView = () => {
@@ -332,22 +313,48 @@ export default function App() {
         </div>
       )}
 
-      {/* Curved Theme Toggle Button */}
-      <button 
-        className="theme-toggle-btn" 
-        onClick={toggleTheme} 
-        title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
-      >
-        {theme === 'dark' ? (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m0 13.5V21M4.95 4.95l1.59 1.59m10.91 10.91l1.59 1.59M3 12h2.25m13.5 0H21m-16.05 4.95l1.59-1.59m10.91-10.91l1.59-1.59M12 7.5a4.5 4.5 0 100 9 4.5 4.5 0 000-9z" />
-          </svg>
+      {/* Top Right Controls Container (Theme Switcher + Dynamic Profile/Auth Button) */}
+      <div className="top-controls-container">
+        {/* Curved Theme Toggle Button */}
+        <button 
+          className="theme-toggle-btn" 
+          onClick={toggleTheme} 
+          title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        >
+          {theme === 'dark' ? (
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m0 13.5V21M4.95 4.95l1.59 1.59m10.91 10.91l1.59 1.59M3 12h2.25m13.5 0H21m-16.05 4.95l1.59-1.59m10.91-10.91l1.59-1.59M12 7.5a4.5 4.5 0 100 9 4.5 4.5 0 000-9z" />
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+            </svg>
+          )}
+        </button>
+
+        {/* Auth Module Toggle */}
+        {currentUser ? (
+          /* Logged In: Displays Sleek Capsule with Sign Out */
+          <div className="user-profile-capsule">
+            <div className="user-avatar-circle">
+              {currentUser.username.charAt(0).toUpperCase()}
+            </div>
+            <span className="user-profile-name">{currentUser.username}</span>
+            <button className="user-profile-signout" onClick={handleSignOut}>
+              Sign Out
+            </button>
+          </div>
         ) : (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-          </svg>
+          /* Guest Session: Displays Professional Curved Sign In Button */
+          <button 
+            className="btn btn-primary" 
+            style={{ height: '44px', borderRadius: '22px', padding: '0 22px' }}
+            onClick={() => setShowLoginModal(true)}
+          >
+            Sign In
+          </button>
         )}
-      </button>
+      </div>
 
       {/* Navigation Sidebar */}
       <aside className="sidebar">
@@ -358,7 +365,7 @@ export default function App() {
           <span className="logo-text">FlowStock</span>
         </div>
 
-        <ul className="nav-links" style={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+        <ul className="nav-links">
           <li 
             className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
             onClick={() => setCurrentView('dashboard')}
@@ -395,58 +402,6 @@ export default function App() {
             </svg>
             Orders
           </li>
-
-          {/* Active User Branding (Sidebar Details) */}
-          <div style={{
-            marginTop: 'auto',
-            padding: '16px',
-            background: 'var(--card-bg)',
-            border: '1px solid var(--card-border)',
-            borderRadius: 'var(--border-radius-sm)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            marginBottom: '12px'
-          }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              backgroundColor: 'var(--color-accent)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 700,
-              fontSize: '0.9rem',
-              color: '#fff'
-            }}>
-              {currentUser.username.charAt(0).toUpperCase()}
-            </div>
-            <div style={{ overflow: 'hidden' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                {currentUser.username}
-              </div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--color-success)', fontWeight: 500 }}>
-                • Connected
-              </div>
-            </div>
-          </div>
-
-          {/* Exit Terminal Session (Sign Out) */}
-          <li 
-            className="nav-item" 
-            style={{ 
-              color: 'var(--color-danger)', 
-              borderColor: 'transparent',
-              fontWeight: 600
-            }}
-            onClick={handleSignOut}
-          >
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            Sign Out
-          </li>
         </ul>
       </aside>
 
@@ -454,6 +409,36 @@ export default function App() {
       <main className="main-content">
         {renderActiveView()}
       </main>
+
+      {/* Glassmorphic Login Overlay Popup Modal */}
+      {showLoginModal && (
+        <div className="modal-overlay" style={{ zIndex: 120 }}>
+          <div style={{ position: 'relative', width: '100%', maxWidth: '420px' }}>
+            <button 
+              className="close-btn" 
+              style={{ 
+                position: 'absolute', 
+                top: '16px', 
+                right: '16px', 
+                zIndex: 130, 
+                fontSize: '1.75rem',
+                fontWeight: 600,
+                color: 'var(--text-secondary)'
+              }}
+              onClick={() => setShowLoginModal(false)}
+            >
+              ✕
+            </button>
+            <LoginScreen 
+              API_BASE_URL={API_BASE_URL} 
+              onLoginSuccess={(profile) => {
+                handleLoginSuccess(profile);
+                setShowLoginModal(false);
+              }} 
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

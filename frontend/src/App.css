@@ -664,10 +664,6 @@ tr:hover td {
 
 /* Global Theme Toggle Button */
 .theme-toggle-btn {
-  position: fixed;
-  top: 32px;
-  right: 40px;
-  z-index: 90;
   width: 44px;
   height: 44px;
   border-radius: 50%;
@@ -708,18 +704,98 @@ tr:hover td {
   }
 }
 
+/* Top Right Controls Bar Layout */
+.top-controls-container {
+  position: fixed;
+  top: 32px;
+  right: 40px;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Glassmorphic User Profile Capsule */
+.user-profile-capsule {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  padding: 6px 14px;
+  height: 44px;
+  border-radius: 22px;
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-sm);
+}
+
+.user-avatar-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: white;
+}
+
+.user-profile-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.user-profile-signout {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-danger);
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+  transition: var(--transition-fast);
+  margin-left: 6px;
+}
+
+.user-profile-signout:hover {
+  text-shadow: 0 0 5px var(--color-danger-glow);
+  text-decoration: underline;
+}
+
 /* Adjust header spacing for toggle on desktop */
 @media (min-width: 769px) {
   header {
-    padding-right: 60px;
+    padding-right: 220px;
   }
 }
 
 @media (max-width: 768px) {
-  .theme-toggle-btn {
+  .top-controls-container {
     top: 16px;
     right: 16px;
+    gap: 8px;
+  }
+  
+  .theme-toggle-btn {
     width: 38px;
     height: 38px;
+  }
+
+  .user-profile-capsule {
+    height: 38px;
+    padding: 6px 10px;
+  }
+  
+  .user-avatar-circle {
+    width: 24px;
+    height: 24px;
+    font-size: 0.75rem;
+  }
+  
+  .user-profile-name {
+    display: none; /* Hide text on small screens */
   }
 }
